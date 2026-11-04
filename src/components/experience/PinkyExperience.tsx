@@ -16,9 +16,9 @@ export function PinkyExperience({ content, preview = false, slug }: { content: G
       preview={preview}
       slug={slug}
       scenes={["swear", "promises"]}
-      renderScene={(scene, next) => (
+      renderScene={(scene, next, seen) => (
         <>
-          {scene === "swear" && <Swear them={content.them} you={content.you} onDone={next} />}
+          {scene === "swear" && <Swear them={content.them} you={content.you} done={seen} onDone={next} />}
           {scene === "promises" && <Promises promises={promises} note={note} them={content.them} you={content.you} onDone={next} />}
         </>
       )}
@@ -42,9 +42,9 @@ function Hand({ tone, sleeve, flip }: { tone: string; sleeve: string; flip?: boo
   );
 }
 
-function Swear({ them, you, onDone }: { them: string; you: string; onDone: () => void }) {
+function Swear({ them, you, done, onDone }: { them: string; you: string; done: boolean; onDone: () => void }) {
   const [holding, setHolding] = useState(false);
-  const [sworn, setSworn] = useState(false);
+  const [sworn, setSworn] = useState(done);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
 

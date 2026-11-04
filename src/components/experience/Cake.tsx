@@ -216,11 +216,13 @@ const CONFETTI = (() => {
 
 type Stage = "unlit" | "lit" | "blown";
 
-export function Cake({ them, age, flavour, onDone }: { them: string; age?: number; flavour: string; onDone: () => void }) {
+export function Cake({ them, age, flavour, done = false, onDone }: { them: string; age?: number; flavour: string; done?: boolean; onDone: () => void }) {
   const f = FLAVOURS[flavour] ?? FLAVOURS.chocolate;
   const candles = useMemo(() => candlesFor(age), [age]);
-  const [stage, setStage] = useState<Stage>("unlit");
-  const [out, setOut] = useState<number[]>([]);
+  // Coming back to a cake already blown out: it stays out, without the smoke and confetti again.
+  const [already] = useState(done);
+  const [stage, setStage] = useState<Stage>(done ? "blown" : "unlit");
+  const [out, setOut] = useState<number[]>(() => (done ? candles.map((_, i) => i) : []));
   const box = useRef<HTMLDivElement>(null);
   const meter = useRef<HTMLSpanElement>(null);
   const energy = useRef(0);
@@ -301,6 +303,7 @@ export function Cake({ them, age, flavour, onDone }: { them: string; age?: numbe
       <div ref={box} className="relative mt-4 h-[250px] w-[260px]" style={vars({ "--lean": 0 })}>
         <CakeArt f={f} candles={candles} lit={stage !== "unlit" && !allOut} />
         {stage !== "unlit" &&
+          !already &&
           candles.map((c, i) => (
             <span key={c.x} className={`flame ${out.includes(i) ? "out" : ""}`} style={{ left: c.x, top: c.wickY }}>
               <span className="flame-lean" style={vars({ "--k": 0.85 + ((i * 37) % 30) / 100 })}>
@@ -314,6 +317,7 @@ export function Cake({ them, age, flavour, onDone }: { them: string; age?: numbe
             </span>
           ))}
         {stage === "blown" &&
+          !already &&
           candles.map((c, ci) =>
             Array.from({ length: 6 }, (_, i) => (
               <span
@@ -331,7 +335,7 @@ export function Cake({ them, age, flavour, onDone }: { them: string; age?: numbe
           )}
       </div>
 
-      {stage === "blown" && (
+      {stage === "blown" && !already && (
         <div className="pointer-events-none fixed inset-0 z-20 overflow-hidden" aria-hidden="true">
           {CONFETTI.map((p, i) => (
             <span

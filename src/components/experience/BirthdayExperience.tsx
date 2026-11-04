@@ -33,12 +33,12 @@ export function BirthdayExperience({ content, preview = false, slug }: { content
       slug={slug}
       scenes={scenes}
       secret={typeof v.secret === "string" ? v.secret : ""}
-      renderScene={(scene, next) => (
+      renderScene={(scene, next, seen) => (
         <>
-          {scene === "cake" && <Cake them={content.them} age={age} flavour={typeof v.cake === "string" ? v.cake : "chocolate"} onDone={next} />}
-          {scene === "fireflies" && <Fireflies them={content.them} reasons={reasons} onDone={next} />}
+          {scene === "cake" && <Cake them={content.them} age={age} flavour={typeof v.cake === "string" ? v.cake : "chocolate"} done={seen} onDone={next} />}
+          {scene === "fireflies" && <Fireflies them={content.them} reasons={reasons} done={seen} onDone={next} />}
           {scene === "memories" && <Memories photos={photos} onDone={next} />}
-          {scene === "letter" && <Letter text={letter} them={content.them} you={content.you} onDone={next} />}
+          {scene === "letter" && <Letter text={letter} them={content.them} you={content.you} done={seen} onDone={next} />}
           {scene === "voice" && voice && <VoiceJar note={voice} you={content.you} onDone={next} />}
         </>
       )}
@@ -59,9 +59,10 @@ export function usePreloadPhotos(photos: Photo[]) {
   }, [photoKey]);
 }
 
-function Fireflies({ them, reasons, onDone }: { them: string; reasons: string[]; onDone: () => void }) {
-  const [caught, setCaught] = useState<number[]>([]);
-  const [open, setOpen] = useState<number | null>(null);
+function Fireflies({ them, reasons, done: seen, onDone }: { them: string; reasons: string[]; done: boolean; onDone: () => void }) {
+  // Caught in the order they were caught; each one stays as a light below to read again.
+  const [caught, setCaught] = useState<number[]>(() => (seen ? reasons.map((_, i) => i) : []));
+  const [open, setOpen] = useState<number | null>(seen ? 0 : null);
   const done = caught.length === reasons.length;
 
   const catchOne = (i: number) => {
@@ -94,8 +95,27 @@ function Fireflies({ them, reasons, onDone }: { them: string; reasons: string[];
           </div>
         )}
       </div>
+      <div className="flex items-center" role="group" aria-label="Caught fireflies">
+        {reasons.map((_, slot) => {
+          const i = caught[slot];
+          if (i === undefined) {
+            return (
+              <span key={slot} className="flex h-9 w-8 items-center justify-center" aria-hidden="true">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--divider)]" />
+              </span>
+            );
+          }
+          const active = open === i;
+          return (
+            <button key={slot} type="button" onClick={() => setOpen(i)} aria-label={`Read reason ${slot + 1} again`} aria-pressed={active} className="flex h-9 w-8 items-center justify-center">
+              <span className={`firefly transition-transform duration-300 ${active ? "scale-150" : ""}`} style={{ width: 8, height: 8 }} />
+            </button>
+          );
+        })}
+      </div>
       <p className="text-sm font-bold text-gold" aria-live="polite">
         {caught.length} of {reasons.length} caught
+        {caught.length > 1 && <span className="font-semibold text-muted"> · tap a light to read it again</span>}
       </p>
       <div className="mt-3 min-h-[92px] w-full">
         {open !== null && (

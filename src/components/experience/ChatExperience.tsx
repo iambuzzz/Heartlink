@@ -14,15 +14,15 @@ export function ChatExperience({ content, preview = false, slug }: { content: Gi
       preview={preview}
       slug={slug}
       scenes={["chat"]}
-      renderScene={(scene, next) => scene === "chat" && <Chat lines={lines} title={typeof v.title === "string" ? v.title.trim() : ""} ps={typeof v.ps === "string" ? v.ps.trim() : ""} you={content.you} onDone={next} />}
+      renderScene={(scene, next, seen) => scene === "chat" && <Chat lines={lines} done={seen} title={typeof v.title === "string" ? v.title.trim() : ""} ps={typeof v.ps === "string" ? v.ps.trim() : ""} you={content.you} onDone={next} />}
     />
   );
 }
 
 /** Replays the chat one bubble at a time, with the sender "typing" before each of their messages. */
-function Chat({ lines, title, ps, you, onDone }: { lines: ChatLine[]; title: string; ps: string; you: string; onDone: () => void }) {
+function Chat({ lines, title, ps, you, done: seen, onDone }: { lines: ChatLine[]; title: string; ps: string; you: string; done: boolean; onDone: () => void }) {
   const total = lines.length + (ps ? 1 : 0);
-  const [shown, setShown] = useState(0);
+  const [shown, setShown] = useState(seen ? total : 0);
   const [typing, setTyping] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const done = shown >= total;

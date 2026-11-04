@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { sound } from "@/lib/sound";
 import type { GiftContent } from "@/lib/templates/types";
-import { HeartIcon, ReplayIcon, SpeakerIcon, SpeakerOffIcon } from "../Icons";
+import { ChevronLeftIcon, ChevronRightIcon, HeartIcon, ReplayIcon, SpeakerIcon, SpeakerOffIcon } from "../Icons";
 import { FireflyHeart } from "../scenery";
 import { Reply } from "./Reply";
 
@@ -33,26 +33,79 @@ export function Story({
   slug?: string;
   scenes: string[];
   secret?: string;
-  renderScene: (scene: string, next: () => void) => React.ReactNode;
+  renderScene: (scene: string, next: () => void, seen: boolean) => React.ReactNode;
 }) {
   const scenes = ["intro", ...middle, "end"];
+  const last = scenes.length - 1;
   const [index, setIndex] = useState(0);
+  const [furthest, setFurthest] = useState(0);
   const [found, setFound] = useState<string[]>([]);
-  const scene = scenes[Math.min(index, scenes.length - 1)];
-  const next = () => setIndex((i) => Math.min(i + 1, scenes.length - 1));
+  const indexRef = useRef(0);
+  indexRef.current = index;
+  const scene = scenes[Math.min(index, last)];
+  // A scene they've already been past opens finished: stepping back is for re-reading, not redoing.
+  const seen = index < furthest;
   const hideable = scenes.filter((s) => s !== "end");
   const spot = HIDDEN_SPOTS[index % HIDDEN_SPOTS.length];
   useEffect(() => () => sound.stop(), []);
 
+  // Each step forward is a history entry, so the phone's back gesture walks back through the
+  // story instead of leaving the gift.
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => setIndex(Math.max(0, Math.min(last, (e.state as SceneState | null)?.hlScene ?? 0)));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [last]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [index]);
+
+  // One entry per scene, even when jumping ahead, so going back can count entries.
+  const forward = (to: number) => {
+    for (let k = indexRef.current + 1; k <= to; k++) window.history.pushState({ hlScene: k } satisfies SceneState, "");
+    setIndex(to);
+    setFurthest((f) => Math.max(f, to));
+  };
+  const next = () => forward(Math.min(indexRef.current + 1, last));
+  const back = (to: number) => {
+    const at = (window.history.state as SceneState | null)?.hlScene ?? 0;
+    if (at === indexRef.current && to < at) window.history.go(to - at);
+    else {
+      window.history.replaceState({ hlScene: to } satisfies SceneState, "");
+      setIndex(to);
+    }
+  };
+
   return (
     <div className={`mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pt-5 ${preview ? "pb-32" : "pb-10"}`}>
-      <div className="relative flex justify-center gap-1.5">
+      <div className="relative flex items-center justify-center">
         <SoundToggle />
-        {scenes.map((s, i) => (
-          <span key={s} aria-hidden="true" className="h-1.5 rounded-full transition-all duration-500" style={{ width: i === index ? 22 : 6, background: i <= index ? "var(--gold-text)" : "var(--divider)" }} />
-        ))}
+        <nav className="flex items-center" aria-label="Story steps">
+          <button type="button" onClick={() => back(index - 1)} aria-label="Previous step" className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-opacity" style={index > 0 ? undefined : { opacity: 0, pointerEvents: "none" }}>
+            <ChevronLeftIcon size={17} />
+          </button>
+          {scenes.map((s, i) => {
+            const reachable = i <= furthest && i !== index;
+            return (
+              <button
+                key={s}
+                type="button"
+                disabled={!reachable}
+                onClick={() => (i < index ? back(i) : forward(i))}
+                aria-label={`Step ${i + 1} of ${scenes.length}`}
+                aria-current={i === index ? "step" : undefined}
+                className="flex h-9 items-center px-[3px]"
+              >
+                <span className="block h-1.5 rounded-full transition-all duration-500" style={{ width: i === index ? 22 : 6, background: i <= furthest ? "var(--gold-text)" : "var(--divider)", opacity: i > index ? 0.45 : 1 }} />
+              </button>
+            );
+          })}
+          <button type="button" onClick={() => forward(index + 1)} aria-label="Next step" className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-opacity" style={index < furthest ? undefined : { opacity: 0, pointerEvents: "none" }}>
+            <ChevronRightIcon size={17} />
+          </button>
+        </nav>
         {found.length > 0 && (
-          <span className="absolute right-0 -top-1 flex items-center gap-1 text-xs font-extrabold text-gold" aria-live="polite">
+          <span className="absolute right-0 top-0 flex items-center gap-1 text-xs font-extrabold text-gold" aria-live="polite">
             <span className="firefly h-1.5 w-1.5" aria-hidden="true" />
             {found.length}/{hideable.length} hidden
           </span>
@@ -68,8 +121,19 @@ export function Story({
             }}
           />
         )}
-        {scene !== "intro" && scene !== "end" && renderScene(scene, next)}
-        {scene === "end" && <End content={content} preview={preview} slug={slug} secret={found.length === hideable.length ? secret.trim() || DEFAULT_SECRET : null} onReplay={() => setIndex(0)} />}
+        {scene !== "intro" && scene !== "end" && renderScene(scene, next, seen)}
+        {scene === "end" && (
+          <End
+            content={content}
+            preview={preview}
+            slug={slug}
+            secret={found.length === hideable.length ? secret.trim() || DEFAULT_SECRET : null}
+            onReplay={() => {
+              back(0);
+              setFurthest(0);
+            }}
+          />
+        )}
         {scene !== "end" && !found.includes(scene) && (
           <button
             type="button"
@@ -89,12 +153,14 @@ export function Story({
   );
 }
 
+type SceneState = { hlScene?: number };
+
 function SoundToggle() {
   const started = useSyncExternalStore(sound.subscribe, sound.isStarted, () => false);
   const muted = useSyncExternalStore(sound.subscribe, sound.isMuted, () => false);
   if (!started) return null;
   return (
-    <button type="button" onClick={sound.toggle} aria-label={muted ? "Turn music on" : "Turn music off"} aria-pressed={!muted} className="absolute -left-2 -top-3.5 flex h-9 w-9 items-center justify-center rounded-full text-muted">
+    <button type="button" onClick={sound.toggle} aria-label={muted ? "Turn music on" : "Turn music off"} aria-pressed={!muted} className="absolute -left-2 top-0 flex h-9 w-9 items-center justify-center rounded-full text-muted">
       {muted ? <SpeakerOffIcon size={18} /> : <SpeakerIcon size={18} />}
     </button>
   );

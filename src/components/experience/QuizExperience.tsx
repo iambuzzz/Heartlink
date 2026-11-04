@@ -26,7 +26,7 @@ export function QuizExperience({ content, preview = false, slug }: { content: Gi
       preview={preview}
       slug={slug}
       scenes={["quiz", "score", "letter"]}
-      renderScene={(scene, next) => (
+      renderScene={(scene, next, seen) => (
         <>
           {scene === "quiz" && (
             <Quiz
@@ -40,7 +40,7 @@ export function QuizExperience({ content, preview = false, slug }: { content: Gi
             />
           )}
           {scene === "score" && <Score score={score} total={questions.length} you={content.you} them={content.them} onDone={next} />}
-          {scene === "letter" && <Letter text={letter} them={content.them} you={content.you} onDone={next} />}
+          {scene === "letter" && <Letter text={letter} them={content.them} you={content.you} done={seen} onDone={next} />}
         </>
       )}
     />

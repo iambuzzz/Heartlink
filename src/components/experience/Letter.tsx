@@ -7,9 +7,10 @@ import { HeartIcon } from "../Icons";
 type Stage = "sealed" | "opening" | "open";
 
 /** An envelope that opens, then a letter that writes itself in, word by word. */
-export function Letter({ text, them, you, onDone }: { text: string; them: string; you: string; onDone: () => void }) {
-  const [stage, setStage] = useState<Stage>("sealed");
-  const [instant, setInstant] = useState(false);
+export function Letter({ text, them, you, done = false, onDone }: { text: string; them: string; you: string; done?: boolean; onDone: () => void }) {
+  // Already read once: open straight to the whole letter.
+  const [stage, setStage] = useState<Stage>(done ? "open" : "sealed");
+  const [instant, setInstant] = useState(done);
   useEffect(() => {
     if (stage !== "opening") return;
     const t = window.setTimeout(() => setStage("open"), 1250);

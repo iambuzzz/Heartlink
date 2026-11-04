@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { HeartIcon, ReplyIcon } from "@/components/Icons";
+import { HeartIcon, PlaneIcon, ReplyIcon } from "@/components/Icons";
 import { revealLabel } from "@/components/experience/Teaser";
 import { ScheduleReveal } from "@/components/ScheduleReveal";
 import { MemoryJar } from "@/components/scenery";
@@ -82,16 +82,33 @@ function GiftCard({ gift, url }: { gift: OwnerGift; url: string }) {
       </dl>
 
       {gift.replies.length > 0 && (
-        <div className="mt-4 flex flex-col gap-2.5">
-          <p className="text-[11.5px] font-extrabold uppercase tracking-[0.14em] text-gold">Paper planes from {gift.them}</p>
-          {gift.replies.map((r) => (
-            <div key={r.id} className="rounded-2xl px-4 py-3 text-left" style={{ background: "var(--paper)", color: "var(--paper-ink)" }}>
-              {r.message && <p className="whitespace-pre-wrap font-hand text-[22px] leading-snug">{r.message}</p>}
-              {r.voice && <VoicePlay src={r.voice.src} seconds={r.voice.seconds} />}
-              <p className="mt-1 text-right text-[11px] opacity-60">{when(r.created_at)}</p>
-            </div>
-          ))}
-        </div>
+        <section className="mt-5">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="text-[11.5px] font-extrabold uppercase tracking-[0.14em] text-gold">Paper planes from {gift.them}</h3>
+            <span className="text-xs font-bold text-muted">
+              {gift.replies.length} {gift.replies.length === 1 ? "reply" : "replies"}
+            </span>
+          </div>
+          {/* Read like a chat from them: their initial, a bubble, and when it landed. */}
+          <ol className="mt-3 flex flex-col gap-3.5">
+            {gift.replies.map((r) => (
+              <li key={r.id} className="flex items-end gap-2.5">
+                <span className="mb-5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-glass-line bg-cell font-display text-[17px] text-gold" aria-hidden="true">
+                  {(gift.them.trim()[0] ?? "♥").toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className={`flex max-w-full flex-col gap-1.5 rounded-[20px] rounded-bl-md border border-glass-line bg-cell px-4 py-3 ${r.voice ? "w-full" : "w-fit"}`}>
+                    {r.message && <p className="whitespace-pre-wrap break-words font-hand text-[23px] leading-snug">{r.message}</p>}
+                    {r.voice && <VoicePlay src={r.voice.src} seconds={r.voice.seconds} />}
+                  </div>
+                  <p className="mt-1.5 flex items-center gap-1.5 pl-1 text-[11px] font-semibold text-muted">
+                    <PlaneIcon size={11} /> Landed {when(r.created_at)}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
       )}
 
       <div className="mt-4 flex flex-col gap-2.5">
